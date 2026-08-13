@@ -38,6 +38,13 @@ type Dispatcher struct {
 	wg sync.WaitGroup // Create a Wait Group for workers to synchronize upon cancellation
 }
 
+func execute(job *Job) {
+	fmt.Println("Doing Work! This is the job: ", job.id)
+	job.Status = Completed
+	fmt.Println("Job has now completed: ", job.Status)
+	return true
+}
+
 func (d *Dispatcher) Start(ctx context.Context) {
 	for i := 0; i < d.workers; i++ {
 		d.wg.Add(1)
@@ -46,7 +53,7 @@ func (d *Dispatcher) Start(ctx context.Context) {
 			for job := range d.jobs{
 				fmt.Println("Working on: ", job.id)
 				job.Status = Processing
-				doWork(job)
+				execute(job)
 				// Job has failed
 				if job.Status == Failed {
 					job.CurrentRetries++
@@ -59,7 +66,7 @@ func (d *Dispatcher) Start(ctx context.Context) {
 								fmt.Println("Retrying job: ", job.id)
 						}
 					}
-					fmt.Println("Job past maximum retries")
+					fmt.Println("Job failed and past maximum retries")
 				}
 			}
 		}()
