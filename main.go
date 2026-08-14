@@ -7,10 +7,20 @@ import (
 
 func main(){
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
+	m := &Metrics{}
+
+	// Our central JobStore
+	js := &JobStore{
+		repository: make(map[int]*Job),
+	}
+
+	// Our central dispatcher
 	d := &Dispatcher{
 		workers: 3,
 		jobs: make(chan *Job, 100),
+		js: js,
+		m: m,
 	}
 
 	d.Start(ctx)
@@ -28,7 +38,11 @@ func main(){
 			CurrentRetries: 0,
 			CreatedAt: time.Now(),
 		}
+		d.js.Save(job)
 		d.Enqueue(job)
 	}
+
+	// Ensure order of operations so that workers can see context has been cancelled
+	cancel()
 	d.Stop()
 }
