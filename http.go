@@ -5,11 +5,15 @@ import(
 	"net/http"
 	"encoding/json"
 	"time"
+	"strconv"
 )
 
 var id int = 0
 
-func CreateJobHandler(w http.ResponseWriter, r *http.Request, d *Dispatcher){
+// Create reciever to access appropriate data members from Dispatcher
+
+// POST Method to create job
+func (d *Dispatcher) CreateJobHandler(w http.ResponseWriter, r *http.Request){
 	fmt.Println("Creating Job...")
 	
 	var req JobRequest
@@ -22,7 +26,7 @@ func CreateJobHandler(w http.ResponseWriter, r *http.Request, d *Dispatcher){
 	w.Write([]byte("Payload recieved successfully"))
 
 	job := &Job{
-		id: id,
+		Id: id,
 		Type: req.Type,
 		P: req.P,
 		Status: Pending,
@@ -36,6 +40,37 @@ func CreateJobHandler(w http.ResponseWriter, r *http.Request, d *Dispatcher){
 
 }
 
-func GetJobHandler(w http.ResponseWriter, r *http.Request, d *Dispatcher){
-	
+// GET method to read job
+func (d *Dispatcher) GetJobHandler(w http.ResponseWriter, r *http.Request){
+	id, err := strconv.Atoi(r.PathValue("id"))
+
+	if err != nil{
+		http.Error(w, "Bad Request boiiii", http.StatusBadRequest)
+		return
+	}
+
+	job, found := d.js.ReadJob(id)
+
+	if found{
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Found the job, here you go"))
+		json.NewEncoder(w).Encode(job)
+	} else{
+		http.Error(w, "Job not found", http.StatusNotFound)
+	}
+}
+
+// GET Method to read metrics
+func (d *Dispatcher) GetMetricsHandler(w http.ResponseWriter, r *http.Request){
+	metrics, err := d.m.GetMetrics()
+
+	if err != nil{
+		http.Error(w, "Server couldn't retrieve that for you", 500)
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Providing Metrics"))
+		json.NewEncoder(w).Encode(metrics)
+	}
 }
