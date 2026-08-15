@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"time"
+	"math/rand/v2"
 )
 
 func main(){
@@ -26,12 +27,29 @@ func main(){
 	d.Start(ctx)
 
 	for i := 0; i < 10; i++ {
-		p := Payload{
-			JobName: "Haiiiii",
+		which := rand.IntN(4)
+		task := "nothing"
+		p := Payload{"nothing"}
+		switch which{
+		case 0:
+			task = "email_notification"
+			p = Payload{"Emailing"}
+		case 1:
+			task = "resize_image"
+			p = Payload{"2x"}
+		case 2:
+			task = "flaky_webhook_service"
+			p = Payload{"Message: hai"}
+		default:
+			task = "failure"
+			p = Payload{"failureeeee"}
 		}
+		// p := Payload{
+		// 	JobName: "Haiiiii",
+		// }
 		job := &Job{
 			id: i,
-			Type: "dummy",
+			Type: task,
 			P: p,
 			Status: Pending,
 			MaxRetries: 10,

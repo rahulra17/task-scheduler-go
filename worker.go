@@ -6,11 +6,14 @@ import (
 	"sync"
 	"context"
 	"sync/atomic"
+	"math/rand/v2"
 )
 
-type Payload struct {
-	JobName string `json:"jobName"`
-}
+/* 
+
+Structs and Custom Types for Jobs being done
+
+*/
 
 type Status int
 
@@ -20,6 +23,16 @@ const (
 	Processing
 	Failed
 )
+
+type JobRequest struct {
+	Type string `json:"Type"`
+	MaxRetries int `json:"MaxRetries"`
+	P Payload
+}
+
+type Payload struct {
+	JobName string `json:"JobName"`
+}
 
 type Job struct {
 	id int
@@ -40,13 +53,62 @@ type Dispatcher struct {
 	m *Metrics
 }
 
+// Storage for all Jobs for visibility across workers
+type JobStore struct {
+	repository map[int]*Job
+	lock sync.RWMutex
+}
+
+// struct for global metrics
+type Metrics struct {
+	JobsDone atomic.Int64
+	Active atomic.Int64
+	Failed atomic.Int64
+}
+
+// func doJob(job *Job){
+// 	switch job.Type{
+// 		case "email" {
+
+// 		}
+// 	}
+// }
+
+func doWork(job *Job, js *JobStore) {
+	switch job.Type {
+	case "email_notification":
+		time.Sleep(100 * time.Millisecond)
+		js.UpdateStatus(job.id, Completed)
+	case "resize_image":
+		time.Sleep(1 * time.Second)
+		js.UpdateStatus(job.id, Completed)
+	case "flaky_webhook_service":
+		if rand.IntN(50) > 25{
+			fmt.Println("mamaweboooo")
+			js.UpdateStatus(job.id, Failed)
+		} else{
+			fmt.Println("Oh alright nice")
+			js.UpdateStatus(job.id, Completed)
+		}
+	case "failure":
+		js.UpdateStatus(job.id, Failed)
+	}
+	return
+}
+
+// function for execution
+
 func execute(job *Job, js *JobStore, m *Metrics) bool{
 	if job, ok := js.ReadJob(job.id); ok {
 		fmt.Println("Doing Work! This is the job: ", job.id)
 		init_status := job.Status
 		js.UpdateStatus(job.id, Processing)
 		m.Active.Add(1)
-		fmt.Println("Job has now completed: ", job.id)
+
+		// Do the actual work
+		doWork(job, js)
+
+		fmt.Println("Job has been Processed: ", job.id)
 		// check to see if it was a failed job so we can update the status
 		if init_status == Failed {
 			defer m.Failed.Add(-1)
@@ -66,16 +128,17 @@ func execute(job *Job, js *JobStore, m *Metrics) bool{
 		defer m.Active.Add(-1)
 		if job.Status != Failed{
 			m.JobsDone.Add(1)
-			js.UpdateStatus(job.id, Completed)
 			return true
 		} else{
 			m.Failed.Add(1)
-			js.UpdateStatus(job.id, Failed)
 		}
 	}
 	return false
 }
 
+/*
+Built-in Dispatcher Recievers
+*/
 func (d *Dispatcher) worker(ctx context.Context) {
 	defer d.wg.Done()
 	for job := range d.jobs {
@@ -122,18 +185,9 @@ func (d *Dispatcher) Stop() {
 	d.wg.Wait()
 }
 
-// Storage for all Jobs for visibility across workers
-type JobStore struct {
-	repository map[int]*Job
-	lock sync.RWMutex
-}
-
-// struct for global metrics
-type Metrics struct {
-	JobsDone atomic.Int64
-	Active atomic.Int64
-	Failed atomic.Int64
-}
+/*
+Built-In job store recievers
+*/
 
 // Saves a job to the jobstore
 func (j *JobStore) Save(job *Job) {
@@ -182,6 +236,8 @@ func (j *JobStore) PrintJobs() {
 	}
 	j.lock.RUnlock()
 }
+
+// Built in Job toString
 
 func (j Job) String() string {
 	return fmt.Sprintf("Payload: %v\nCurrent_Retries: %d\nStatus: %d", j.P, j.CurrentRetries, j.Status)
