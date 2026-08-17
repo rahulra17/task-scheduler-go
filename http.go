@@ -20,10 +20,10 @@ func (d *Dispatcher) CreateJobHandler(w http.ResponseWriter, r *http.Request){
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Payload recieved successfully"))
 
 	job := &Job{
 		Id: id,
@@ -54,7 +54,6 @@ func (d *Dispatcher) GetJobHandler(w http.ResponseWriter, r *http.Request){
 	if found{
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Found the job, here you go"))
 		json.NewEncoder(w).Encode(job)
 	} else{
 		http.Error(w, "Job not found", http.StatusNotFound)
@@ -67,10 +66,10 @@ func (d *Dispatcher) GetMetricsHandler(w http.ResponseWriter, r *http.Request){
 
 	if err != nil{
 		http.Error(w, "Server couldn't retrieve that for you", 500)
+		return
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Providing Metrics"))
 		json.NewEncoder(w).Encode(metrics)
 	}
 }
